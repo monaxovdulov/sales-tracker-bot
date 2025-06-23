@@ -32,6 +32,7 @@ def register_handlers():
     bot.callback_query_handler(func=lambda call: call.data == 'admin_export_csv')(export_csv)
     bot.callback_query_handler(func=lambda call: call.data.startswith('withdraw_approve_'))(approve_withdrawal)
     bot.callback_query_handler(func=lambda call: call.data.startswith('withdraw_decline_'))(decline_withdrawal)
+    bot.callback_query_handler(func=lambda call: call.data == 'admin_back')(handle_admin_back)
 
 def handle_admin(message: Message):
     """Handle /admin command"""

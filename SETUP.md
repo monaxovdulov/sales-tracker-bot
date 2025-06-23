@@ -63,8 +63,7 @@ REPLY_TIMEOUT=10
 
 ### 6. Запуск
 ```bash
-cd bot
-python __main__.py
+python bot/__main__.py
 ```
 
 ## Использование

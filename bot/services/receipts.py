@@ -23,7 +23,15 @@ def _get_drive_service():
     """Get Google Drive service instance"""
     global _drive_service
     if _drive_service is None:
-        credentials = Credentials.from_service_account_file(GSPREAD_CREDENTIALS)
+        # Указываем необходимые scopes для Google Drive
+        scopes = [
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/drive.file'
+        ]
+        credentials = Credentials.from_service_account_file(
+            GSPREAD_CREDENTIALS,
+            scopes=scopes
+        )
         _drive_service = build('drive', 'v3', credentials=credentials)
     return _drive_service
 

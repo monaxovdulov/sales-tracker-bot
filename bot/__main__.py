@@ -5,7 +5,6 @@ Sales Tracker Bot - Main Entry Point
 
 import logging
 from telebot import TeleBot
-from telebot.storage import StateMemoryStorage
 
 from config import BOT_TOKEN, REPLY_TIMEOUT
 
@@ -18,9 +17,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Initialize and start the bot"""
-    # Initialize bot with FSM storage
-    state_storage = StateMemoryStorage()
-    bot = TeleBot(BOT_TOKEN, parse_mode="HTML", state_storage=state_storage)
+    # Initialize bot without FSM storage (using our own FSM)
+    bot = TeleBot(BOT_TOKEN, parse_mode="HTML")
     
     # Import and initialize handlers
     from handlers import start, worker, admin
@@ -29,7 +27,6 @@ def main():
     start.init_bot(bot)
     worker.init_bot(bot)
     admin.init_bot(bot)
-    admin.register_back_handler(bot)  # Register admin back button handler
     
     logger.info("Bot started successfully")
     

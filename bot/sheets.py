@@ -19,7 +19,15 @@ def _get_client() -> gspread.Client:
     """Get authenticated gspread client with caching"""
     global _gc
     if _gc is None:
-        credentials = Credentials.from_service_account_file(GSPREAD_CREDENTIALS)
+        # Указываем необходимые scopes для Google Sheets и Drive
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        credentials = Credentials.from_service_account_file(
+            GSPREAD_CREDENTIALS, 
+            scopes=scopes
+        )
         _gc = gspread.authorize(credentials)
     return _gc
 
