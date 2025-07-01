@@ -96,6 +96,18 @@ def approve_worker(tg_id: int) -> None:
     
     _retry_api_call(_approve)
 
+def decline_worker(tg_id: int) -> None:
+    """Decline worker (change status from pending to declined)"""
+    def _decline():
+        ws = workers_ws()
+        records = ws.get_all_records()
+        for i, record in enumerate(records, start=2):  # Start from row 2
+            if record.get("tg_id") == tg_id:
+                ws.update_cell(i, 3, "declined")  # Assuming role is column 3
+                break
+    
+    _retry_api_call(_decline)
+
 def inc_balance(tg_id: int, delta: float) -> None:
     """Increase worker balance"""
     def _inc():

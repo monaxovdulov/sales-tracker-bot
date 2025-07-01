@@ -34,19 +34,34 @@ def handle_start(message: Message):
     
     # Check if user is admin
     if tg_id in ADMIN_IDS:
-        bot.reply_to(message, "🔧 Вы админ, используйте /admin для панели управления")
+        bot.reply_to(
+            message, 
+            "🔧 Вы админ, используйте /admin для панели управления"
+        )
         return
     
     # Check worker status
     worker = sheets.get_worker(tg_id)
     
     if worker:
-        if worker.get("role") == "worker":
+        role = worker.get("role")
+        if role == "worker":
             show_cabinet(message)
-        elif worker.get("role") == "pending":
-            bot.reply_to(message, "⏳ Ваша заявка на рассмотрении. Ожидайте одобрения от администратора.")
+        elif role == "pending":
+            bot.reply_to(
+                message, 
+                "⏳ Your application is under review."
+            )
+        elif role == "declined":
+            bot.reply_to(
+                message, 
+                "🛑 Your application was declined. Contact admin to reapply."
+            )
         else:
-            bot.reply_to(message, "❌ Произошла ошибка. Обратитесь к администратору.")
+            bot.reply_to(
+                message, 
+                "❌ Произошла ошибка. Обратитесь к администратору."
+            )
     else:
         # Add new worker with pending status
         sheets.add_worker(tg_id, username)
@@ -54,7 +69,11 @@ def handle_start(message: Message):
         # Notify admins
         notify_admins_new_worker(tg_id, username)
         
-        bot.reply_to(message, "📝 Заявка на регистрацию отправлена. Ожидайте одобрения от администратора.")
+        bot.reply_to(
+            message, 
+            "📝 Заявка на регистрацию отправлена. "
+            "Ожидайте одобрения от администратора."
+        )
 
 def show_cabinet(message: Message):
     """Show worker cabinet"""
@@ -115,7 +134,11 @@ def handle_approve(call: CallbackQuery):
         
         # Notify worker
         try:
-            bot.send_message(tg_id, "🎉 Поздравляем! Ваша заявка одобрена. Теперь вы можете пользоваться ботом. Нажмите /start для входа в личный кабинет.")
+            bot.send_message(
+                tg_id, 
+                "✅ Your application was approved. "
+                "Press /start to access your cabinet."
+            )
         except Exception as e:
             logger.error(f"Failed to notify worker {tg_id}: {e}")
             
@@ -123,19 +146,31 @@ def handle_approve(call: CallbackQuery):
         logger.error(f"Failed to approve worker {tg_id}: {e}")
         bot.answer_callback_query(call.id, "❌ Ошибка при одобрении")
 
-def handle_decline(call: CallbackQuery):
+
+
+def handle_decline(call: CallbackQuery) -> None:
     """Handle worker decline"""
     if call.from_user.id not in ADMIN_IDS:
         bot.answer_callback_query(call.id, "❌ Недостаточно прав")
         return
-    
+
     tg_id = int(call.data.split('_')[1])
-    
-    bot.edit_message_text(
-        f"❌ Заявка работника {tg_id} отклонена",
-        call.message.chat.id,
-        call.message.message_id
-    )
-    
-    # Note: We don't delete the worker record, just leave it as pending
-    # This allows for manual review later if needed 
+
+    try:
+        sheets.decline_worker(tg_id)
+        bot.edit_message_text(
+            f"❌ Заявка работника {tg_id} отклонена",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id
+        )
+        # Notify worker
+        try:
+            bot.send_message(
+                tg_id,
+                "🛑 Ваша заявка была отклонена."
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify worker {tg_id}: {e}")
+    except Exception as e:
+        logger.error(f"Failed to decline worker {tg_id}: {e}")
+        bot.answer_callback_query(call.id, "❌ Ошибка при отклонении")

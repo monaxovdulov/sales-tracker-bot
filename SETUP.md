@@ -62,7 +62,8 @@ REPLY_TIMEOUT=10
 ```
 
 ### 6. Запуск
-```bash
+```shell
+cd .\.venv\Scripts\Activate.ps1
 python bot/__main__.py
 ```
 

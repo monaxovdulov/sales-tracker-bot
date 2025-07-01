@@ -12,6 +12,7 @@ import sheets
 from services import commission, receipts
 from utils.validators import is_phone, is_money, normalize_money, is_url
 from fsm import fsm, States
+from config import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -332,15 +333,35 @@ def show_confirmation(chat_id: int, user_id: int):
     fsm.set_state(user_id, chat_id, States.CLIENT_CONFIRM)
     bot.send_message(chat_id, text, reply_markup=keyboard)
 
-def process_confirm(call: CallbackQuery):
-    """Process confirmation"""
+def process_confirm(call: CallbackQuery) -> None:
+    """Process confirmation, prevent double save on repeated presses"""
     bot.answer_callback_query(call.id)
-    
+    data = fsm.get_data(call.from_user.id, call.message.chat.id)
+    is_saved = data.get('is_saved', False)
+
     if call.data == "confirm_save":
+        if is_saved:
+            bot.reply_to(call.message, "Уже сохранено")
+            return
+        # Mark as saved
+        fsm.set_data(call.from_user.id, call.message.chat.id, 'is_saved', True)
+        # Remove inline keyboard
+        try:
+            bot.edit_message_reply_markup(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                reply_markup=None
+            )
+        except Exception:
+            pass
         save_client(call.message.chat.id, call.from_user.id)
     else:
         fsm.clear_state(call.from_user.id, call.message.chat.id)
-        bot.edit_message_text("❌ Добавление клиента отменено", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text(
+            "❌ Добавление клиента отменено",
+            call.message.chat.id,
+            call.message.message_id
+        )
 
 def save_client(chat_id: int, user_id: int):
     """Save client to spreadsheet"""
@@ -394,8 +415,6 @@ def save_client(chat_id: int, user_id: int):
 
 def notify_admins_new_client(client_data: dict, commission: float):
     """Notify admins about new client"""
-    from config import ADMIN_IDS
-    
     text = f"""📈 <b>Новый клиент добавлен</b>
 
 👤 Работник: @{client_data['worker_username']}
@@ -471,8 +490,6 @@ def process_withdrawal_amount(message: Message):
 
 def notify_admins_withdrawal(tg_id: int, username: str, amount: float, withdrawal_id: int):
     """Notify admins about withdrawal request"""
-    from config import ADMIN_IDS
-    
     text = f"""💸 <b>Заявка на вывод средств</b>
 
 👤 Работник: @{username} (ID: {tg_id})
@@ -489,4 +506,33 @@ def notify_admins_withdrawal(tg_id: int, username: str, amount: float, withdrawa
         try:
             bot.send_message(admin_id, text, reply_markup=keyboard)
         except Exception as e:
-            logger.error(f"Failed to notify admin {admin_id}: {e}") 
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
+
+def handle_decline(call: CallbackQuery):
+    """Handle worker decline"""
+    if call.from_user.id not in ADMIN_IDS:
+        bot.answer_callback_query(call.id, "❌ Недостаточно прав")
+        return
+
+    tg_id = int(call.data.split('_')[-1])
+
+    try:
+        sheets.decline_worker(tg_id)
+        bot.edit_message_text(
+            f"❌ Заявка работника {tg_id} отклонена",
+            call.message.chat.id,
+            call.message.message_id
+        )
+
+        # Notify worker
+        try:
+            bot.send_message(
+                tg_id,
+                "🛑 Ваша заявка была отклонена."
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify worker {tg_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to decline worker {tg_id}: {e}")
+        bot.answer_callback_query(call.id, "❌ Ошибка при отклонении") 
