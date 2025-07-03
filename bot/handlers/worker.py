@@ -46,7 +46,8 @@ def _is_fsm_text_state(message) -> bool:
     user_state = fsm.get_state(message.from_user.id, message.chat.id)
     text_states = [
         States.CLIENT_PHONE,
-        States.CLIENT_NAME, 
+        States.CLIENT_NAME,
+        States.CLIENT_MESSENGER, 
         States.CLIENT_ORDER_LINK,
         States.CLIENT_AMOUNT,
         States.CLIENT_RECEIPT,  # для пропуска чека
@@ -110,6 +111,8 @@ def handle_text_message(message: Message):
         process_phone(message)
     elif user_state == States.CLIENT_NAME:
         process_name(message)
+    elif user_state == States.CLIENT_MESSENGER:
+        process_messenger_text(message)
     elif user_state == States.CLIENT_ORDER_LINK:
         process_order_link(message)
     elif user_state == States.CLIENT_AMOUNT:
@@ -173,38 +176,24 @@ def process_name(message: Message):
     # Save name to state data
     fsm.set_data(message.from_user.id, message.chat.id, 'name', name)
     
-    # Show messenger options
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("📱 Telegram", callback_data="messenger_telegram"),
-        InlineKeyboardButton("💬 WhatsApp", callback_data="messenger_whatsapp"),
-        InlineKeyboardButton("📧 Другое", callback_data="messenger_other")
-    )
-    
+    # Просим любой контакт в мессенджере
     fsm.set_state(message.from_user.id, message.chat.id, States.CLIENT_MESSENGER)
-    bot.reply_to(message, "📨 Выберите мессенджер для связи:", reply_markup=keyboard)
-
-def process_messenger(call: CallbackQuery):
-    """Process messenger selection"""
-    bot.answer_callback_query(call.id)
-    
-    messenger_map = {
-        "messenger_telegram": "Telegram",
-        "messenger_whatsapp": "WhatsApp",
-        "messenger_other": "Другое"
-    }
-    
-    messenger = messenger_map.get(call.data, "Другое")
-    
-    # Save messenger to state data
-    fsm.set_data(call.from_user.id, call.message.chat.id, 'messenger', messenger)
-    
-    fsm.set_state(call.from_user.id, call.message.chat.id, States.CLIENT_ORDER_LINK)
-    bot.edit_message_text(
-        "🔗 Введите ссылку на товар или описание заказа:",
-        call.message.chat.id,
-        call.message.message_id
+    bot.reply_to(
+        message,
+        "📨 Введите ссылку или текст контакта клиента (например, @username или https://t.me/username):"
     )
+
+def process_messenger_text(message: Message):
+    """Сохраняем введённый контакт клиента"""
+    contact = message.text.strip()
+    if len(contact) < 3:
+        bot.reply_to(message, "❌ Слишком короткий контакт. Попробуйте ещё раз:")
+        return
+
+    fsm.set_data(message.from_user.id, message.chat.id, 'messenger', contact)
+    fsm.set_state(message.from_user.id, message.chat.id, States.CLIENT_ORDER_LINK)
+    bot.reply_to(message, "🔗 Введите ссылку на товар или описание заказа:")
+
 
 def process_order_link(message: Message):
     """Process order link or description"""
@@ -240,8 +229,8 @@ def process_amount(message: Message):
     # Show status options
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
-        InlineKeyboardButton("🤔 Хочет купить", callback_data="status_wants"),
-        InlineKeyboardButton("⏳ Ждём оплаты", callback_data="status_waiting"),
+        #InlineKeyboardButton("🤔 Хочет купить", callback_data="status_wants"),
+        #InlineKeyboardButton("⏳ Ждём оплаты", callback_data="status_waiting"),
         InlineKeyboardButton("✅ Оплатил", callback_data="status_paid")
     )
     

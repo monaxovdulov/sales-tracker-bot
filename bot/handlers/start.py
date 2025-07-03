@@ -50,12 +50,12 @@ def handle_start(message: Message):
         elif role == "pending":
             bot.reply_to(
                 message, 
-                "⏳ Your application is under review."
+                "⏳ Ваша заявка находится на рассмотрении."
             )
         elif role == "declined":
             bot.reply_to(
                 message, 
-                "🛑 Your application was declined. Contact admin to reapply."
+                "🛑 Ваша заявка была отклонена. Свяжитесь с администратором для повторной подачи."
             )
         else:
             bot.reply_to(
@@ -136,8 +136,8 @@ def handle_approve(call: CallbackQuery):
         try:
             bot.send_message(
                 tg_id, 
-                "✅ Your application was approved. "
-                "Press /start to access your cabinet."
+                "✅ Ваша заявка была одобрена. "
+                "Используйте /start для доступа к своему кабинету."
             )
         except Exception as e:
             logger.error(f"Failed to notify worker {tg_id}: {e}")
